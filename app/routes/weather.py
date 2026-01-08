@@ -8,11 +8,11 @@ router = APIRouter()
     "/weather",
     response_model=WeatherResponse
 )
-def get_weather(
+async def get_weather(   # 👈 DEBE ser async
     city: str = Query(..., min_length=2, description="City name or code")
 ):
     try:
-        data = get_weather_from_api(city)
+        data = await get_weather_from_api(city)  # 👈 await
 
         today = data["days"][0]
 
