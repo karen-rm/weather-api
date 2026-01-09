@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather API - Consulta del Clima</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .weather-result {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .weather-result.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .city-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .temperature {
+            font-size: 48px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            font-size: 18px;
+            color: #555;
+            text-transform: capitalize;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            border-left: 4px solid #c33;
+        }
+
+        .error.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌤️ Consulta del Clima</h1>
+
+        <form id="weatherForm">
+            <div class="form-group">
+                <label for="city">Nombre de la ciudad:</label>
+                <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    placeholder="Ej: Madrid, Bogotá, Buenos Aires..."
+                    required
+                    minlength="2"
+                    autocomplete="off"
+                >
+            </div>
+            <button type="submit" id="submitBtn">Consultar Clima</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #667eea;">Consultando el clima...</p>
+        </div>
+
+        <div class="weather-result" id="weatherResult">
+            <div class="city-name" id="cityName"></div>
+            <div class="temperature" id="temperature"></div>
+            <div class="description" id="description"></div>
+        </div>
+
+        <div class="error" id="error"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('weatherForm');
+        const cityInput = document.getElementById('city');
+        const submitBtn = document.getElementById('submitBtn');
+        const weatherResult = document.getElementById('weatherResult');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        const cityNameEl = document.getElementById('cityName');
+        const temperatureEl = document.getElementById('temperature');
+        const descriptionEl = document.getElementById('description');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const city = cityInput.value.trim();
+
+            if (!city) {
+                showError('Por favor, ingresa el nombre de una ciudad');
+                return;
+            }
+
+            // Reset states
+            hideError();
+            hideWeatherResult();
+            showLoading();
+            disableForm();
+
+            try {
+                const response = await fetch(`/weather?city=${encodeURIComponent(city)}`);
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error al consultar el clima');
+                }
+
+                // Show weather data
+                cityNameEl.textContent = data.city;
+                temperatureEl.textContent = `${Math.round(data.temperature)}°C`;
+                descriptionEl.textContent = data.description;
+
+                showWeatherResult();
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message || 'Error al conectar con el servidor');
+            } finally {
+                hideLoading();
+                enableForm();
+            }
+        });
+
+        function showLoading() {
+            loading.classList.add('show');
+        }
+
+        function hideLoading() {
+            loading.classList.remove('show');
+        }
+
+        function showWeatherResult() {
+            weatherResult.classList.add('show');
+        }
+
+        function hideWeatherResult() {
+            weatherResult.classList.remove('show');
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        function hideError() {
+            errorDiv.classList.remove('show');
+        }
+
+        function disableForm() {
+            submitBtn.disabled = true;
+            cityInput.disabled = true;
+        }
+
+        function enableForm() {
+            submitBtn.disabled = false;
+            cityInput.disabled = false;
+            cityInput.focus();
+        }
+
+        // Focus input on load
+        cityInput.focus();
+    </script>
+</body>
+</html>
